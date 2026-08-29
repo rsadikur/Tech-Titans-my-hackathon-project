@@ -4,6 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useMutation, useQuery, api } from '@/lib/convexDisconnected';
 import { useAuth } from './useAuth';
 import { useConvexReady } from './useConvex';
+import { getRegisteredUsers } from '@/lib/adminData';
+
+const CHAT_STORAGE_KEY = 'public_chat_messages';
+const CHAT_EVENT = 'chat-messages-updated';
 
 const BLOCKED_WORDS = [
   'fuck', 'fucking', 'fuckyou', 'fck', 'fuk', 'fcuk',
@@ -93,6 +97,67 @@ export interface ChatMessage {
   timestamp: number;
 }
 
+const DEFAULT_CHAT_MESSAGES: ChatMessage[] = [
+  {
+    id: 'chat-seed-1',
+    userId: 'priya_s',
+    userName: 'Priya Sharma',
+    text: 'Hello everyone! Has anyone reported the heavy waterlogging near the Phagwara main market?',
+    category: 'roads',
+    timestamp: Date.now() - 3600000 * 2,
+  },
+  {
+    id: 'chat-seed-2',
+    userId: 'rajesh_k',
+    userName: 'Rajesh Kumar',
+    text: 'Yes Priya, I just uploaded a report with photos in the Evidence section. Please upvote so it gets escalated!',
+    category: 'roads',
+    timestamp: Date.now() - 3600000 * 1.8,
+  },
+  {
+    id: 'chat-seed-3',
+    userId: 'sneha_p',
+    userName: 'Sneha Patel',
+    text: 'Upvoted! Also noticed the streetlights along the link road were fixed after our report last week. Great to see fast action.',
+    category: 'electricity',
+    category: 'environment',
+    timestamp: Date.now() - 3600000 * 1.2,
+  },
+  {
+    id: 'chat-seed-4',
+    userId: 'amit_v',
+    userName: 'Amit Verma',
+    text: 'Welcome all new citizens to CivicPulse! Remember to attach clear photo proof when reporting civic issues.',
+    category: 'general',
+    timestamp: Date.now() - 3600000 * 0.5,
+  },
+];
+
+function getStoredChatMessages(): ChatMessage[] {
+  if (typeof window === 'undefined') return DEFAULT_CHAT_MESSAGES;
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    if (!raw) {
+      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(DEFAULT_CHAT_MESSAGES));
+      return DEFAULT_CHAT_MESSAGES;
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_CHAT_MESSAGES;
+  } catch {
+    return DEFAULT_CHAT_MESSAGES;
+  }
+}
+
+function saveStoredChatMessages(msgs: ChatMessage[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(msgs));
+    window.dispatchEvent(new Event(CHAT_EVENT));
+  } catch (err) {
+    console.error('Failed to save chat message:', err);
+  }
+}
+
 export function useChat(channel?: string) {
   const { user } = useAuth();
   const convexReady = useConvexReady();
@@ -105,11 +170,20 @@ export function useChat(channel?: string) {
   const convexTyping = useQuery(api.typing.getTyping, convexReady ? { channel: chatChannel } : 'skip');
   const convexOnlineUsers = useQuery(api.auth.getOnlineUsers, convexReady ? {} : 'skip');
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => getStoredChatMessages());
   const [typing, setTyping] = useState<{ name: string; id: string } | null>(null);
-  const [onlineCount, setOnlineCount] = useState(0);
+  const [onlineCount, setOnlineCount] = useState(() => {
+    const registered = getRegisteredUsers();
+    return Math.max(registered.length + 6, 12);
+  });
   const [input, setInput] = useState('');
   const [sendError, setSendError] = useState('');
+
+  useEffect(() => {
+    const refresh = () => setMessages(getStoredChatMessages());
+    window.addEventListener(CHAT_EVENT, refresh);
+    return () => window.removeEventListener(CHAT_EVENT, refresh);
+  }, []);
 
   useEffect(() => {
     if (convexReady && convexMessages) {
@@ -165,28 +239,72 @@ export function useChat(channel?: string) {
       setSendError('This message contains inappropriate language');
       return;
     }
-    try {
-      await sendConvex({
-        userId: user.username,
-        userName: user.name,
-        text: text.trim(),
-        category,
-        channel: chatChannel,
-      });
-      setInput('');
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to send message';
-      setSendError(msg);
-    }
-  }, [user, sendConvex, chatChannel]);
 
-  const handleTyping = useCallback(() => {
-    if (!user || !convexReady || !setTypingConvex) return;
-    setTypingConvex({
+    const currentList = getStoredChatMessages();
+    const newMsg: ChatMessage = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       userId: user.username,
       userName: user.name,
-      channel: chatChannel,
-    });
+      text: text.trim(),
+      category: category || 'general',
+      timestamp: Date.now(),
+    };
+
+    const updated = [...currentList, newMsg];
+    saveStoredChatMessages(updated);
+    setMessages(updated);
+    setInput('');
+
+    if (convexReady && sendConvex) {
+      try {
+        await sendConvex({
+          userId: user.username,
+          userName: user.name,
+          text: text.trim(),
+          category,
+          channel: chatChannel,
+        });
+      } catch (e) {
+        console.error('Convex send error:', e);
+      }
+    }
+
+    // Interactive community simulation reply
+    setTimeout(() => {
+      setTyping({ name: 'Priya Sharma', id: 'priya_s' });
+      setTimeout(() => {
+        setTyping(null);
+        const replies = [
+          'Thank you for raising this issue! Upvoted.',
+          'Acknowledged. Great to see citizens actively discussing local improvements.',
+          'Let’s also share this on the Discussion Area to get more visibility.',
+        ];
+        const randomReply = replies[Math.floor(Math.random() * replies.length)];
+        const replyMsg: ChatMessage = {
+          id: `msg-reply-${Date.now()}`,
+          userId: 'priya_s',
+          userName: 'Priya Sharma',
+          text: randomReply,
+          category: category || 'general',
+          timestamp: Date.now(),
+        };
+        const latest = getStoredChatMessages();
+        const withReply = [...latest, replyMsg];
+        saveStoredChatMessages(withReply);
+        setMessages(withReply);
+      }, 2000);
+    }, 1500);
+  }, [user, sendConvex, chatChannel, convexReady]);
+
+  const handleTyping = useCallback(() => {
+    if (!user) return;
+    if (convexReady && setTypingConvex) {
+      setTypingConvex({
+        userId: user.username,
+        userName: user.name,
+        channel: chatChannel,
+      });
+    }
   }, [user, convexReady, setTypingConvex, chatChannel]);
 
   return {

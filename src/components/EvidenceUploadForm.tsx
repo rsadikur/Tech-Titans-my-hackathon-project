@@ -421,8 +421,9 @@ export default function EvidenceUploadForm() {
       }
 
       setCurrentStep('success');
-    } catch {
-      setFormError('Submission failed. Please check your connection and try again.');
+    } catch (err: unknown) {
+      console.error('Submission error:', err);
+      setFormError(err instanceof Error ? err.message : 'Submission could not be completed. Please try again.');
     } finally {
       setSubmitting(false);
     }

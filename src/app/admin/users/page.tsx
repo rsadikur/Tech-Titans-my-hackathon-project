@@ -1,10 +1,18 @@
-'use client';
+﻿'use client';
 
-import { useQuery, api } from '@/lib/convexDisconnected';
+import { useEffect, useState } from 'react';
 import { FiUsers, FiCircle } from 'react-icons/fi';
+import { getRegisteredUsers, USERS_EVENT, AdminUser } from '@/lib/adminData';
 
 export default function AdminUsersPage() {
-  const users = useQuery(api.admin.getAllUsers);
+  const [users, setUsers] = useState<AdminUser[]>(() => getRegisteredUsers());
+
+  useEffect(() => {
+    const refresh = () => setUsers(getRegisteredUsers());
+    refresh();
+    window.addEventListener(USERS_EVENT, refresh);
+    return () => window.removeEventListener(USERS_EVENT, refresh);
+  }, []);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -12,11 +20,11 @@ export default function AdminUsersPage() {
         <FiUsers className="w-5 h-5 text-blue-400" />
         <div>
           <h1 className="text-xl font-bold text-white">Users</h1>
-          <p className="text-sm text-zinc-400">{users?.length ?? 0} registered users</p>
+          <p className="text-sm text-zinc-400">{users.length} registered users</p>
         </div>
       </div>
 
-      {!users || users.length === 0 ? (
+      {users.length === 0 ? (
         <div className="text-center py-20">
           <p className="text-zinc-400 text-sm">No users yet</p>
         </div>
@@ -34,7 +42,7 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((user: any) => (
+                {users.map((user: AdminUser) => (
                   <tr key={user.username} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
                     <td className="px-4 py-3 text-white font-medium">{user.name}</td>
                     <td className="px-4 py-3 text-zinc-400">@{user.username}</td>

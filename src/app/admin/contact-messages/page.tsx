@@ -1,13 +1,10 @@
 'use client';
 
-import { useQuery, useMutation, api } from '@/lib/convexDisconnected';
 import { useEffect, useState } from 'react';
 import { FiMessageSquare, FiMail, FiCheck } from 'react-icons/fi';
 import { getContactMessages, markContactMessageAsRead, CONTACT_EVENT, ContactMessage } from '@/lib/adminData';
 
 export default function AdminContactMessagesPage() {
-  const messages = useQuery(api.contact.list);
-  const markAsRead = useMutation(api.contact.markAsRead);
   const [messages, setMessages] = useState<ContactMessage[]>([]);
 
   useEffect(() => {
@@ -65,7 +62,6 @@ export default function AdminContactMessagesPage() {
                   <span className="text-[10px] text-zinc-500">{formatDate(msg.createdAt)}</span>
                   {!msg.read && (
                     <button
-                      onClick={() => markAsRead({ id: msg._id })}
                       onClick={() => handleMarkAsRead(msg._id)}
                       className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all"
                       title="Mark as read"
