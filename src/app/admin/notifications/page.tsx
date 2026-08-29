@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useMutation, api } from '@/lib/convexDisconnected';
 import { FiSend, FiUsers, FiUser, FiBell } from 'react-icons/fi';
+import { sendAppNotification } from '@/lib/adminData';
 
 export default function AdminNotificationsPage() {
   const sendNotification = useMutation(api.notifications.sendAdminNotification);
@@ -19,6 +20,12 @@ export default function AdminNotificationsPage() {
     if (target === 'user' && !username.trim()) return;
     setSending(true);
     try {
+      sendAppNotification({
+        target,
+        userId: target === 'user' ? username.trim() : undefined,
+        title: title.trim(),
+        message: message.trim(),
+      });
       await sendNotification({
         target,
         username: target === 'user' ? username.trim() : undefined,

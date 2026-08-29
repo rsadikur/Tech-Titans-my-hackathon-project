@@ -5,6 +5,7 @@ import { useMutation, api } from '@/lib/convexDisconnected';
 import { useAuth } from '@/hooks/useAuth';
 import { useConvexReady } from '@/hooks/useConvex';
 import { usePathname } from 'next/navigation';
+import { logVisitorEvent } from '@/lib/adminData';
 
 function getOrCreateSessionId(): string {
   const key = 'visitor_session_id';
@@ -59,6 +60,7 @@ export default function PageTracker() {
 
   useEffect(() => {
     if (!convexReady || !pathname || pathname.startsWith('/admin')) return;
+    if (!pathname || pathname.startsWith('/admin')) return;
     if (pathname === lastPath.current) return;
     lastPath.current = pathname;
 
@@ -67,13 +69,26 @@ export default function PageTracker() {
     const { referrer, source } = getReferrerSource();
 
     logVisit({
+    logVisitorEvent({
       userId,
       userName,
       page: pathname,
       referrer: referrer || undefined,
       source: source === 'Direct' ? undefined : source,
       country: country || undefined,
+      country: country || 'India',
     });
+
+    if (convexReady && logVisit) {
+      logVisit({
+        userId,
+        userName,
+        page: pathname,
+        referrer: referrer || undefined,
+        source: source === 'Direct' ? undefined : source,
+        country: country || undefined,
+      });
+    }
   }, [user, pathname, logVisit, country, convexReady]);
 
   return null;

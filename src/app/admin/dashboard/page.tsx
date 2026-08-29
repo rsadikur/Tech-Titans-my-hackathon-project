@@ -1,7 +1,10 @@
 'use client';
 
 import { useQuery, api } from '@/lib/convexDisconnected';
+import { useEffect, useState } from 'react';
 import { FiUsers, FiVideo, FiClock, FiCheckCircle, FiTrendingUp } from 'react-icons/fi';
+import { getLocalEvidence, LOCAL_EVIDENCE_EVENT } from '@/lib/localEvidence';
+import { getRegisteredUsers, USERS_EVENT } from '@/lib/adminData';
 
 const cards = [
   { label: 'Total Users', key: 'users', icon: FiUsers, color: 'from-blue-500/20 to-blue-600/10 text-blue-400' },
@@ -13,6 +16,12 @@ const cards = [
 export default function AdminDashboardPage() {
   const stats = useQuery(api.evidence.getStats);
   const users = useQuery(api.admin.getAllUsers);
+  const [data, setData] = useState({
+    users: 0,
+    total: 0,
+    pending: 0,
+    approved: 0,
+  });
 
   const data = {
     users: users?.length ?? 0,
@@ -20,6 +29,29 @@ export default function AdminDashboardPage() {
     pending: stats?.pending ?? 0,
     approved: stats?.approved ?? 0,
   };
+  useEffect(() => {
+    const updateStats = () => {
+      const evidence = getLocalEvidence();
+      const users = getRegisteredUsers();
+      const pending = evidence.filter(e => e.status === 'pending').length;
+      const approved = evidence.filter(e => e.status === 'approved' || e.status === 'important').length;
+      
+      setData({
+        users: users.length,
+        total: evidence.length,
+        pending,
+        approved,
+      });
+    };
+
+    updateStats();
+    window.addEventListener(LOCAL_EVIDENCE_EVENT, updateStats);
+    window.addEventListener(USERS_EVENT, updateStats);
+    return () => {
+      window.removeEventListener(LOCAL_EVIDENCE_EVENT, updateStats);
+      window.removeEventListener(USERS_EVENT, updateStats);
+    };
+  }, []);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">

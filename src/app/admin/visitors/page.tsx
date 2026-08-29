@@ -1,11 +1,25 @@
 'use client';
 
 import { useQuery, api } from '@/lib/convexDisconnected';
+import { useEffect, useState } from 'react';
 import { FiUsers, FiBarChart2, FiGlobe, FiCalendar, FiExternalLink, FiMapPin } from 'react-icons/fi';
+import { getTrackedVisitors, getVisitorStats, VISITORS_EVENT, VisitorRecord } from '@/lib/adminData';
 
 export default function AdminVisitorsPage() {
   const visits = useQuery(api.visitors.list, {});
   const stats = useQuery(api.visitors.getStats, {});
+  const [visits, setVisits] = useState<VisitorRecord[]>([]);
+  const [stats, setStats] = useState({ total: 0, unique: 0, today: 0, todayUnique: 0 });
+
+  useEffect(() => {
+    const refresh = () => {
+      setVisits(getTrackedVisitors());
+      setStats(getVisitorStats());
+    };
+    refresh();
+    window.addEventListener(VISITORS_EVENT, refresh);
+    return () => window.removeEventListener(VISITORS_EVENT, refresh);
+  }, []);
 
   const formatDate = (ts: number) => {
     const d = new Date(ts);

@@ -25,11 +25,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    const session = localStorage.getItem('adminSession');
+    // Clear any stale persistent session in localStorage to prevent auto-login
+    try {
+      localStorage.removeItem('adminSession');
+    } catch {}
+
+    const session = typeof window !== 'undefined' ? sessionStorage.getItem('adminSession') : null;
     if (session) {
-      setAdmin(JSON.parse(session));
-      if (pathname === '/admin') {
-        router.push('/admin/dashboard');
+      try {
+        const parsed = JSON.parse(session);
+        setAdmin(parsed);
+        if (pathname === '/admin') {
+          router.push('/admin/dashboard');
+        }
+      } catch {
+        sessionStorage.removeItem('adminSession');
+        setAdmin(null);
+        if (pathname !== '/admin') {
+          router.replace('/admin');
+        }
       }
     } else if (pathname !== '/admin') {
       router.replace('/admin');
@@ -38,7 +52,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [router, pathname]);
 
   const handleLogout = () => {
-    localStorage.removeItem('adminSession');
+    try {
+      sessionStorage.removeItem('adminSession');
+      localStorage.removeItem('adminSession');
+    } catch {}
     setAdmin(null);
     router.push('/admin');
   };

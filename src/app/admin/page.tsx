@@ -23,7 +23,10 @@ export default function AdminLoginPage() {
       if (email.trim().toLowerCase() !== LOCAL_ADMIN_EMAIL || password !== LOCAL_ADMIN_PASSWORD) {
         throw new Error('Invalid admin email or password');
       }
-      localStorage.setItem('adminSession', JSON.stringify({ email: LOCAL_ADMIN_EMAIL, name: 'Admin' }));
+      try {
+        localStorage.removeItem('adminSession');
+      } catch {}
+      sessionStorage.setItem('adminSession', JSON.stringify({ email: LOCAL_ADMIN_EMAIL, name: 'Admin', loggedAt: Date.now() }));
       router.push('/admin/dashboard');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed');

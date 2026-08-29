@@ -14,7 +14,7 @@ export default function AdminPendingPage() {
     return () => window.removeEventListener(LOCAL_EVIDENCE_EVENT, refresh);
   }, []);
 
-  const admin = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('adminSession') || '{}') : {};
+  const admin = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem('adminSession') || '{}') : {};
 
   const handleApprove = async (id: string) => {
     try {

@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiSend, FiMessageSquare, FiArrowLeft, FiCheckCircle } from 'react-icons/fi';
+import { saveContactMessage } from '@/lib/adminData';
 
 export default function ContactAdminPage() {
   const { user } = useAuth();
@@ -29,6 +30,13 @@ export default function ContactAdminPage() {
     setSending(true);
     setError('');
     try {
+      saveContactMessage({
+        userId: user.username,
+        userName: user.name,
+        email: email.trim() || undefined,
+        subject: subject.trim(),
+        message: message.trim(),
+      });
       await sendMessage({
         userId: user.username,
         userName: user.name,

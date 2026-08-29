@@ -234,16 +234,12 @@ export default function EvidenceUploadForm() {
         issueLng
       );
 
-      // Check within 1.0 km radius (or exact same neighborhood for demo accuracy)
-      if (dist <= 1.0 || (issue.location && selectedLocation.formattedAddress && issue.location.toLowerCase().includes(selectedLocation.district.toLowerCase()))) {
       // Check within 1.0 km radius
       if (dist <= 1.0) {
         results.push({ issue, distanceKm: dist });
       }
     });
 
-    // Sort by Most Voted first
-    return results.sort((a, b) => (b.issue.upvotes || 0) - (a.issue.upvotes || 0));
     // Sort by nearest distance first, then most voted
     return results.sort((a, b) => a.distanceKm - b.distanceKm || (b.issue.upvotes || 0) - (a.issue.upvotes || 0));
   }, [selectedLocation, issues]);

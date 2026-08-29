@@ -14,7 +14,7 @@ export default function AdminApprovedPage() {
     return () => window.removeEventListener(LOCAL_EVIDENCE_EVENT, refresh);
   }, []);
 
-  const admin = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('adminSession') || '{}') : {};
+  const admin = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem('adminSession') || '{}') : {};
 
   const handleRemove = async (id: string) => {
     saveLocalEvidence(getLocalEvidence().filter((item) => item._id !== id));

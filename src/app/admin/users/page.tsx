@@ -1,10 +1,20 @@
 'use client';
 
 import { useQuery, api } from '@/lib/convexDisconnected';
+import { useEffect, useState } from 'react';
 import { FiUsers, FiCircle } from 'react-icons/fi';
+import { getRegisteredUsers, USERS_EVENT, AdminUser } from '@/lib/adminData';
 
 export default function AdminUsersPage() {
   const users = useQuery(api.admin.getAllUsers);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+
+  useEffect(() => {
+    const refresh = () => setUsers(getRegisteredUsers());
+    refresh();
+    window.addEventListener(USERS_EVENT, refresh);
+    return () => window.removeEventListener(USERS_EVENT, refresh);
+  }, []);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">

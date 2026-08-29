@@ -12,9 +12,19 @@ function RankBadge({ rank }: { rank: number }) {
   return <span className="text-sm font-bold text-muted dark:text-muted-dark">#{rank}</span>;
 }
 
+const DEFAULT_CONTRIBUTORS = [
+  { rank: 1, name: 'Priya Sharma', username: 'priya_s', avatar: 'PS', color: 'from-amber-500 to-orange-600', role: 'Top Contributor', badges: ['Gold', 'Top Reporter', 'Verified'], points: 1450, reports: 42, solutions: 18 },
+  { rank: 2, name: 'Rajesh Kumar', username: 'rajesh_k', avatar: 'RK', color: 'from-blue-500 to-indigo-600', role: 'Community Lead', badges: ['Silver', 'Verified'], points: 1220, reports: 35, solutions: 14 },
+  { rank: 3, name: 'Sneha Patel', username: 'sneha_p', avatar: 'SP', color: 'from-emerald-500 to-teal-600', role: 'Civic Activist', badges: ['Bronze', 'Verified'], points: 980, reports: 28, solutions: 9 },
+  { rank: 4, name: 'Amit Verma', username: 'amit_v', avatar: 'AV', color: 'from-purple-500 to-pink-600', role: 'Issue Resolver', badges: ['Verified'], points: 840, reports: 22, solutions: 8 },
+  { rank: 5, name: 'Vikram Singh', username: 'vikram_s', avatar: 'VS', color: 'from-rose-500 to-red-600', role: 'Area Monitor', badges: ['Verified'], points: 670, reports: 19, solutions: 5 },
+];
+
 export default function Leaderboard() {
   const convexReady = useConvexReady();
   const contributors = useQuery(api.leaderboard.getLeaderboard, convexReady ? { limit: 5 } : 'skip');
+  const convexContributors = useQuery(api.leaderboard.getLeaderboard, convexReady ? { limit: 5 } : 'skip');
+  const contributors = convexReady && convexContributors && convexContributors.length > 0 ? convexContributors : DEFAULT_CONTRIBUTORS;
 
   return (
     <section className="py-20 lg:py-28" id="leaderboard">
