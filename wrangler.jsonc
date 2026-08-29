@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "civicpulse",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-05-24",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".open-next/assets"
+  },
+  "vars": {
+    "NEXT_PUBLIC_CONVEX_URL": "https://hardy-bird-929.convex.cloud",
+    "CONVEX_DEPLOYMENT": "hardy-bird-929",
+    "NEXT_PUBLIC_CONVEX_SITE_URL": "https://hardy-bird-929.convex.site"
+  }
+}

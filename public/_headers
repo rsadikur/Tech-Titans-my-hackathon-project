@@ -1,0 +1,3 @@
+/* 200.html
+  X-Robots-Tag: all
+  Content-Security-Policy: default-src 'self' 'unsafe-inline' 'unsafe-eval' https://hardy-bird-929.convex.cloud https://hardy-bird-929.convex.site https://*.convex.cloud;
