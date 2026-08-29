@@ -120,7 +120,6 @@ const DEFAULT_CHAT_MESSAGES: ChatMessage[] = [
     userName: 'Sneha Patel',
     text: 'Upvoted! Also noticed the streetlights along the link road were fixed after our report last week. Great to see fast action.',
     category: 'electricity',
-    category: 'environment',
     timestamp: Date.now() - 3600000 * 1.2,
   },
   {
