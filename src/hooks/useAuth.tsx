@@ -1,7 +1,6 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { saveRegisteredUser } from '@/lib/adminData';
 
 export interface UserLocation {
   lat: number;
@@ -85,7 +84,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     try {
       localStorage.setItem('currentUser', JSON.stringify(newUser));
-      saveRegisteredUser({ name: newUser.name, username: newUser.username, email: newUser.email });
       setUser(newUser);
       return { ok: true };
     } catch {
@@ -105,7 +103,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     try {
       localStorage.setItem('currentUser', JSON.stringify(foundUser));
-      saveRegisteredUser({ name: foundUser.name, username: foundUser.username, email: foundUser.email });
       setUser(foundUser);
       return { ok: true };
     } catch {
