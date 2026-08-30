@@ -29,8 +29,10 @@ import {
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useIssues, Issue } from '@/hooks/useIssues';
+import { useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { Id } from '../../convex/_generated/dataModel';
 import LocationPicker, { LocationData } from '@/components/LocationPicker';
-import { fileToDataUrl, getLocalEvidence, saveLocalEvidence, LocalEvidenceRecord } from '@/lib/localEvidence';
 
 // ─── Supported Categories ─────────────────────────────────────────────────────
 const ISSUE_CATEGORIES = [
@@ -135,14 +137,18 @@ interface MediaItem {
   previewUrl: string;
 }
 
-type EvidenceRecord = LocalEvidenceRecord;
-
 // ─── Steps in Reporting Flow ──────────────────────────────────────────────────
 type StepId = 'location' | 'nearby' | 'evidence' | 'details' | 'review' | 'success';
 
 export default function EvidenceUploadForm() {
   const { user } = useAuth();
   const { issues, addIssue, toggleLike } = useIssues();
+
+  // Convex mutations
+  const generateUploadUrl = useMutation(api.evidence.generateUploadUrl);
+  const createIssueMutation = useMutation(api.issues.create);
+  const addEvidenceMutation = useMutation(api.evidence.addEvidence);
+  const toggleIssueVoteMutation = useMutation(api.votes.toggleIssueVote);
 
   // Wizard Step State
   const [currentStep, setCurrentStep] = useState<StepId>('location');
@@ -177,46 +183,21 @@ export default function EvidenceUploadForm() {
   const [submittedReportId, setSubmittedReportId] = useState<string | null>(null);
   const [supportedIssueIds, setSupportedIssueIds] = useState<number[]>([]);
 
-  // User submitted evidence cache from localStorage
-  const [storedEvidence, setStoredEvidence] = useState<EvidenceRecord[]>([]);
-
   const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB max
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('submitted_evidence');
-      if (stored) {
-        setStoredEvidence(JSON.parse(stored));
-      }
-    } catch {}
-  }, []);
 
   // Helper to fetch all evidence items attached to an issue
   const getEvidenceForIssue = useCallback(
     (issue: Issue): { type: 'photo' | 'video'; url: string; userName?: string; timeText: string }[] => {
-      // 1. Check user uploaded evidence for this issue
-      const userItems = storedEvidence
-        .filter((e) => e.issueId === issue.id || (e.title && e.title.includes(issue.title.slice(0, 20))))
-        .map((e) => ({
-          type: e.type,
-          url: e.url,
-          userName: e.userName || 'Citizen Reporter',
-          timeText: 'Recently uploaded',
-        }));
-
-      // 2. Default verified category photos
       const catKey = issue.category.toLowerCase();
       const defaultUrls = CATEGORY_DEFAULT_PHOTOS[catKey] || CATEGORY_DEFAULT_PHOTOS['roads'] || [];
-      const defaultItems = defaultUrls.map((url, i) => ({
+      return defaultUrls.map((url, i) => ({
         type: 'photo' as const,
         url,
         userName: i === 0 ? 'Verified On-ground Inspector' : 'Citizen Reporter',
         timeText: issue.time || '2d ago',
       }));
-
-      return [...userItems, ...defaultItems];
     },
-    [storedEvidence]
+    []
   );
 
   // ── 1. Calculate Nearby Issues within 1 km ─────────────────────────────────
@@ -364,60 +345,90 @@ export default function EvidenceUploadForm() {
     setFormError(null);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      if (!user?._id) {
+        setFormError('Please sign in to submit an official report to the platform.');
+        setSubmitting(false);
+        return;
+      }
+
+      let uploadedStorageId: Id<'_storage'> | undefined = undefined;
+
+      // 1. Upload to Convex Storage if available
+      if (mediaFiles.length > 0) {
+        try {
+          const postUrl = await generateUploadUrl();
+          const primaryFile = mediaFiles[0].file;
+          const uploadRes = await fetch(postUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': primaryFile.type || 'application/octet-stream' },
+            body: primaryFile,
+          });
+          if (uploadRes.ok) {
+            const { storageId } = await uploadRes.json();
+            uploadedStorageId = storageId;
+          }
+        } catch (uploadErr) {
+          console.warn('Convex storage upload notice:', uploadErr);
+        }
+      }
 
       const reportId = `CP-${Date.now().toString().slice(-6)}`;
       setSubmittedReportId(reportId);
 
       if (reportMode === 'new_issue') {
         const fullLocationText = manualAddress.trim() || selectedLocation?.formattedAddress || 'Nearby Area';
-        addIssue({
-          title: title.trim(),
-          category,
-          location: fullLocationText,
-          urgency,
-        });
+        
+        const catMap: Record<string, any> = {
+          pothole: 'Pothole',
+          road_damage: 'Road Damage',
+          garbage: 'Garbage',
+          broken_streetlight: 'Broken Streetlight',
+          water_drainage: 'Water / Drainage',
+          public_infrastructure: 'Public Infrastructure',
+          other: 'Other',
+        };
+        const categoryEnum = catMap[category] || 'Other';
+        const primaryFile = mediaFiles[0]?.file;
 
-        // Store evidence record in localStorage
-          const stored = getLocalEvidence();
-          const mediaUrls = await Promise.all(mediaFiles.map((m) => fileToDataUrl(m.file)));
-          const newEvidenceRecords: EvidenceRecord[] = mediaFiles.map((m, idx) => ({
-          _id: `ev-${reportId}-${idx}`,
-          reportId,
+        await createIssueMutation({
           title: title.trim(),
           description: description.trim(),
-          category,
-          location: fullLocationText,
-          latitude: selectedLocation?.lat,
-          longitude: selectedLocation?.lng,
-          type: m.type,
-          url: mediaUrls[idx],
-          userName: user?.name || 'Verified Citizen',
-          createdAt: Date.now(),
-          status: 'pending',
-        }));
-        saveLocalEvidence([...newEvidenceRecords, ...stored]);
-        setStoredEvidence([...newEvidenceRecords, ...stored]);
+          category: categoryEnum,
+          latitude: selectedLocation?.lat || 31.2536,
+          longitude: selectedLocation?.lng || 75.7037,
+          address: fullLocationText,
+          localArea: selectedLocation?.localArea || selectedLocation?.district || 'Phagwara',
+          district: selectedLocation?.district || 'Kapurthala',
+          state: selectedLocation?.state || 'Punjab',
+          pinCode: selectedLocation?.pinCode || '144411',
+          userId: user._id as Id<'users'>,
+          evidenceStorageId: uploadedStorageId,
+          mediaType: mediaFiles[0]?.type === 'video' ? 'video' : 'image',
+          fileName: primaryFile?.name || 'evidence',
+          fileSize: primaryFile?.size || 0,
+        });
       } else if (targetExistingIssue) {
-        toggleLike(targetExistingIssue.id);
-        const stored = getLocalEvidence();
-        const mediaUrls = await Promise.all(mediaFiles.map((m) => fileToDataUrl(m.file)));
-        const newEvidenceRecords: EvidenceRecord[] = mediaFiles.map((m, idx) => ({
-          _id: `ev-support-${targetExistingIssue.id}-${Date.now()}-${idx}`,
-          issueId: targetExistingIssue.id,
-          title: `Supporting Evidence: ${targetExistingIssue.title}`,
-          category: targetExistingIssue.category,
-          location: targetExistingIssue.location,
-          latitude: selectedLocation?.lat,
-          longitude: selectedLocation?.lng,
-          type: m.type,
-          url: mediaUrls[idx],
-          userName: user?.name || 'Verified Citizen',
-          createdAt: Date.now(),
-          status: 'pending',
-        }));
-        saveLocalEvidence([...newEvidenceRecords, ...stored]);
-        setStoredEvidence([...newEvidenceRecords, ...stored]);
+        if (targetExistingIssue._id) {
+          try {
+            await toggleIssueVoteMutation({
+              issueId: targetExistingIssue._id as Id<'issues'>,
+              userId: user._id as Id<'users'>,
+            });
+            if (uploadedStorageId) {
+              const primaryFile = mediaFiles[0]?.file;
+              await addEvidenceMutation({
+                issueId: targetExistingIssue._id as Id<'issues'>,
+                userId: user._id as Id<'users'>,
+                storageId: uploadedStorageId,
+                mediaType: mediaFiles[0]?.type === 'video' ? 'video' : 'image',
+                fileName: primaryFile?.name || 'supporting_evidence',
+                fileSize: primaryFile?.size || 0,
+              });
+            }
+          } catch (e) {
+            console.warn('Convex support issue notice:', e);
+          }
+        }
       }
 
       setCurrentStep('success');
@@ -720,11 +731,7 @@ export default function EvidenceUploadForm() {
                               📍 {distanceKm < 0.1 ? 'Exact Spot' : `${distanceKm.toFixed(2)} km away`}
                               📍 {formatDistance(distanceKm)}
                             </span>
-                            <span className="text-[11px] text-muted dark:text-muted-dark">
-                              ⏱️ {issue.time || 'Recent'}
-                            </span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto ${issue.statusColor || 'text-amber-500 bg-amber-500/10'}`}>
-                              {issue.status}
+                            <span className="text-[11px] text-muted dark:text-muted-dark ml-auto">
                             </span>
                           </div>
 

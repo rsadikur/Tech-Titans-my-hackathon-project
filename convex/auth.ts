@@ -1,81 +1,41 @@
-import { v } from 'convex/values';
-import { mutation, query } from './_generated/server';
+﻿import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
-export const getOrCreateUser = mutation({
+export const updateOnlineStatus = mutation({
   args: {
-    username: v.string(),
-    name: v.string(),
-    password: v.optional(v.string()),
+    userId: v.string(),
+    userName: v.string(),
+    isOnline: v.boolean(),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
-      .query('users')
-      .filter(q => q.eq(q.field('username'), args.username))
+      .query("onlineUsers")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
       .first();
 
     if (existing) {
       await ctx.db.patch(existing._id, {
-        isOnline: true,
+        isOnline: args.isOnline,
         lastSeen: Date.now(),
       });
-      return existing._id;
+    } else {
+      await ctx.db.insert("onlineUsers", {
+        userId: args.userId,
+        userName: args.userName,
+        isOnline: args.isOnline,
+        lastSeen: Date.now(),
+      });
     }
-
-    return await ctx.db.insert('users', {
-      username: args.username,
-      name: args.name,
-      password: args.password || 'default',
-      isOnline: true,
-      lastSeen: Date.now(),
-      createdAt: Date.now(),
-    });
-  },
-});
-
-export const getUser = query({
-  args: { username: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query('users')
-      .filter(q => q.eq(q.field('username'), args.username))
-      .first();
   },
 });
 
 export const getOnlineUsers = query({
   args: {},
   handler: async (ctx) => {
-    const cutoff = Date.now() - 30000;
+    const threshold = Date.now() - 60000;
     return await ctx.db
-      .query('users')
-      .filter(q => q.eq(q.field('isOnline'), true))
-      .filter(q => q.gte(q.field('lastSeen'), cutoff))
+      .query("onlineUsers")
+      .filter((q) => q.and(q.eq(q.field("isOnline"), true), q.gt(q.field("lastSeen"), threshold)))
       .collect();
-  },
-});
-
-export const setOffline = mutation({
-  args: { username: v.string() },
-  handler: async (ctx, args) => {
-    const user = await ctx.db
-      .query('users')
-      .filter(q => q.eq(q.field('username'), args.username))
-      .first();
-    if (user) {
-      await ctx.db.patch(user._id, { isOnline: false, lastSeen: Date.now() });
-    }
-  },
-});
-
-export const updateOnlineStatus = mutation({
-  args: { username: v.string(), isOnline: v.boolean() },
-  handler: async (ctx, args) => {
-    const user = await ctx.db
-      .query('users')
-      .filter(q => q.eq(q.field('username'), args.username))
-      .first();
-    if (user) {
-      await ctx.db.patch(user._id, { isOnline: args.isOnline, lastSeen: Date.now() });
-    }
   },
 });

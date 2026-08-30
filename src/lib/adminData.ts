@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 export interface AdminUser {
   name: string;
@@ -161,6 +161,7 @@ export function getTrackedVisitors(): VisitorRecord[] {
     if (!raw) {
       const initial: VisitorRecord[] = [
         { _id: 'vis-1', userId: 'citizen_demo', userName: 'Demo Citizen', page: '/', source: 'Direct', country: 'India', createdAt: Date.now() - 300000 },
+        { _id: 'vis-1', userId: 'vikram_s', userName: 'Vikram Singh', page: '/', source: 'Direct', country: 'India', createdAt: Date.now() - 300000 },
         { _id: 'vis-2', userId: 'priya_s', userName: 'Priya Sharma', page: '/evidence', source: 'Google', country: 'India', createdAt: Date.now() - 600000 },
         { _id: 'vis-3', userId: 'rajesh_k', userName: 'Rajesh Kumar', page: '/map', source: 'Direct', country: 'India', createdAt: Date.now() - 1200000 },
         { _id: 'vis-4', userId: 'sneha_p', userName: 'Sneha Patel', page: '/reforms', source: 'Twitter', country: 'India', createdAt: Date.now() - 3600000 },

@@ -1,12 +1,12 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { FiUpload, FiShield, FiLock, FiCheckCircle, FiArrowRight, FiEye } from 'react-icons/fi';
+import { FiUpload, FiShield, FiLock, FiCheckCircle, FiArrowRight } from 'react-icons/fi';
 import Link from 'next/link';
 
 export default function UploadEvidence() {
   return (
-    <section id="evidence" className="py-20 lg:py-28 scroll-mt-20">
+    <section id="evidence" className="py-20 lg:py-28 scroll-mt-24 lg:scroll-mt-28">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           <motion.div
@@ -77,15 +77,6 @@ export default function UploadEvidence() {
                 Supports photos and videos up to 100MB each
               </div>
             </div>
-
-            <Link
-              href="/videos"
-              className="flex items-center justify-center gap-2 w-full p-4 rounded-3xl border border-border dark:border-border-dark glass text-sm font-medium text-muted dark:text-muted-dark hover:text-primary dark:hover:text-white hover:border-primary/30 dark:hover:border-blue-400/30 transition-all"
-            >
-              <FiEye className="w-4 h-4" />
-              View Approved Evidence Videos
-              <FiArrowRight className="w-4 h-4" />
-            </Link>
           </motion.div>
         </div>
       </div>

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useMutation, useQuery, api } from '@/lib/convexDisconnected';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import { useAuth } from './useAuth';
 import { useConvexReady } from './useConvex';
 
@@ -76,8 +77,8 @@ export function useThoughts() {
   }, [user, convexReady, createThought]);
 
   const upvoteThought = useCallback((id: string) => {
-    if (convexReady && upvoteConvex) {
-      upvoteConvex({ thoughtId: id as any });
+    if (convexReady && upvoteConvex && id) {
+      upvoteConvex({ id: id as any });
     }
   }, [convexReady, upvoteConvex]);
 

@@ -1,56 +1,37 @@
-import { v } from 'convex/values';
-import { mutation, query } from './_generated/server';
+﻿import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 export const send = mutation({
   args: {
+    channel: v.string(),
     userId: v.string(),
     userName: v.string(),
     text: v.string(),
-    category: v.string(),
-    channel: v.optional(v.string()),
+    replyTo: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const messageId = await ctx.db.insert('messages', {
+    return await ctx.db.insert("chatMessages", {
+      channel: args.channel,
       userId: args.userId,
       userName: args.userName,
-      text: args.text,
-      category: args.category,
-      timestamp: Date.now(),
-      channel: args.channel || 'general',
+      text: args.text.trim(),
+      replyTo: args.replyTo,
+      createdAt: Date.now(),
     });
-    return messageId;
   },
 });
 
 export const list = query({
   args: {
-    channel: v.optional(v.string()),
+    channel: v.string(),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const channel = args.channel || 'general';
     const limit = args.limit || 100;
     return await ctx.db
-      .query('messages')
-      .withIndex('by_channel', q => q.eq('channel', channel))
-      .order('desc')
+      .query("chatMessages")
+      .withIndex("by_channel", (q) => q.eq("channel", args.channel))
+      .order("desc")
       .take(limit);
-  },
-});
-
-export const getRecent = query({
-  args: {
-    channel: v.optional(v.string()),
-    since: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const channel = args.channel || 'general';
-    const since = args.since || 0;
-    return await ctx.db
-      .query('messages')
-      .withIndex('by_channel', q => q.eq('channel', channel))
-      .filter(q => q.gte(q.field('timestamp'), since))
-      .order('desc')
-      .take(50);
   },
 });

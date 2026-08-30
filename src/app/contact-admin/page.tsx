@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useMutation, api } from '@/lib/convexDisconnected';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiSend, FiMessageSquare, FiArrowLeft, FiCheckCircle } from 'react-icons/fi';
-
 export default function ContactAdminPage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -32,13 +32,14 @@ export default function ContactAdminPage() {
       await sendMessage({
         userId: user.username,
         userName: user.name,
-        email: email.trim() || undefined,
+        email: email.trim() || user.email || undefined,
         subject: subject.trim(),
         message: message.trim(),
       });
       setSent(true);
-    } catch (err) {
-      setError('Failed to send message. Please try again.');
+    } catch (err: any) {
+      console.warn('Convex message send error:', err);
+      setError(err?.message || 'Failed to send message. Please try again.');
     } finally {
       setSending(false);
     }

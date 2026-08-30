@@ -26,11 +26,6 @@ const TrendingIssues = dynamic(() => import("@/components/TrendingIssues"), {
   ssr: false,
 });
 
-const DiscussionArea = dynamic(() => import("@/components/DiscussionArea"), {
-  loading: () => <SectionSkeleton />,
-  ssr: false,
-});
-
 const UploadEvidence = dynamic(() => import("@/components/UploadEvidence"), {
   loading: () => <SectionSkeleton />,
   ssr: false,
@@ -56,7 +51,6 @@ export default function Home() {
     <div className="min-h-screen">
       <Hero />
       <TrendingIssues />
-      <DiscussionArea />
       <UploadEvidence />
       <SuggestReforms />
       <CommunityStats />

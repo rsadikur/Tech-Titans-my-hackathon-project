@@ -1,7 +1,8 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useMutation, api } from '@/lib/convexDisconnected';
+import { useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import { useAuth } from '@/hooks/useAuth';
 import { useConvexReady } from '@/hooks/useConvex';
 import { usePathname } from 'next/navigation';
@@ -62,18 +63,24 @@ export default function PageTracker() {
     if (pathname === lastPath.current) return;
     lastPath.current = pathname;
 
-    const userId = user ? user.username : getOrCreateSessionId();
+    const sessionId = getOrCreateSessionId();
+    const userId = user ? user.username : sessionId;
     const userName = user ? user.name : 'Guest';
     const { referrer, source } = getReferrerSource();
 
-    logVisit({
-      userId,
-      userName,
-      page: pathname,
-      referrer: referrer || undefined,
-      source: source === 'Direct' ? undefined : source,
-      country: country || undefined,
-    });
+    try {
+      logVisit({
+        sessionId,
+        userId,
+        userName,
+        page: pathname,
+        referrer: referrer || undefined,
+        source: source === 'Direct' ? undefined : source,
+        country: country || undefined,
+      });
+    } catch (e) {
+      console.warn('Visitor tracking notice:', e);
+    }
   }, [user, pathname, logVisit, country, convexReady]);
 
   return null;

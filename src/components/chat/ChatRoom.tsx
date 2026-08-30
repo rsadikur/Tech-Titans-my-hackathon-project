@@ -28,7 +28,7 @@ export default function ChatRoom() {
   const [showSidebar, setShowSidebar] = useState(false);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'instant' });
   }, [messages]);
 
   const handleSend = (text: string) => {

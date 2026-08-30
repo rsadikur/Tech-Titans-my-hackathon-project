@@ -1,8 +1,9 @@
 'use client';
 
-import { useMutation, useQuery, api } from '@/lib/convexDisconnected';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { Id } from '../../convex/_generated/dataModel';
 import { useAuth } from './useAuth';
-import { useConvexReady } from './useConvex';
 
 export interface Notification {
   _id: string;
@@ -10,35 +11,49 @@ export interface Notification {
   type: string;
   title: string;
   message: string;
+  isRead: boolean;
   read: boolean;
   createdAt: number;
-  link?: string;
+  relatedIssueId?: string;
+  relatedIdeaId?: string;
 }
 
 export function useNotifications() {
   const { user } = useAuth();
-  const convexReady = useConvexReady();
-  const userId = user?.username || '';
+  const validUserId = user?._id as Id<'users'> | undefined;
 
-  const notifications = useQuery(
-    api.notifications.listByUser,
-    convexReady && userId ? { userId, limit: 20 } : 'skip',
+  const rawNotifications = useQuery(
+    api.notifications.list,
+    validUserId || user?.username
+      ? { userId: validUserId, username: user?.username, limit: 20 }
+      : 'skip'
   ) || [];
+
+  const notifications: Notification[] = rawNotifications.map((n: any) => ({
+    ...n,
+    read: n.isRead,
+  }));
 
   const unreadCount = useQuery(
     api.notifications.getUnreadCount,
-    convexReady && userId ? { userId } : 'skip',
+    validUserId || user?.username
+      ? { userId: validUserId, username: user?.username }
+      : 'skip'
   ) || 0;
 
   const markAsReadFn = useMutation(api.notifications.markAsRead);
   const markAllAsReadFn = useMutation(api.notifications.markAllAsRead);
 
-  const markAsRead = (notificationId: string) => {
-    if (userId) markAsReadFn({ notificationId: notificationId as any });
+  const markAsRead = (id: string) => {
+    if (id) {
+      markAsReadFn({ id: id as Id<'notifications'> });
+    }
   };
 
   const markAllAsRead = () => {
-    if (userId) markAllAsReadFn({ userId });
+    if (validUserId) {
+      markAllAsReadFn({ userId: validUserId });
+    }
   };
 
   return { notifications, unreadCount, markAsRead, markAllAsRead };

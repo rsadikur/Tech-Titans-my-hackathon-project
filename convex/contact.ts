@@ -1,5 +1,5 @@
-import { v } from 'convex/values';
-import { mutation, query } from './_generated/server';
+import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 export const send = mutation({
   args: {
@@ -10,14 +10,14 @@ export const send = mutation({
     message: v.string(),
   },
   handler: async (ctx, args) => {
-    await ctx.db.insert('contactMessages', {
+    return await ctx.db.insert("contactMessages", {
       userId: args.userId,
       userName: args.userName,
       email: args.email,
       subject: args.subject,
       message: args.message,
+      status: "unread",
       createdAt: Date.now(),
-      read: false,
     });
   },
 });
@@ -25,28 +25,13 @@ export const send = mutation({
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db
-      .query('contactMessages')
-      .withIndex('by_created')
-      .order('desc')
-      .collect();
+    return await ctx.db.query("contactMessages").order("desc").collect();
   },
 });
 
 export const markAsRead = mutation({
-  args: { id: v.id('contactMessages') },
+  args: { id: v.id("contactMessages") },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.id, { read: true });
-  },
-});
-
-export const getUnreadCount = query({
-  args: {},
-  handler: async (ctx) => {
-    const msgs = await ctx.db
-      .query('contactMessages')
-      .withIndex('by_read', q => q.eq('read', false))
-      .collect();
-    return msgs.length;
+    await ctx.db.patch(args.id, { status: "read" });
   },
 });

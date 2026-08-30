@@ -1,32 +1,34 @@
-﻿'use client';
+'use client';
 
-import { useEffect, useState } from 'react';
 import { FiUsers, FiCircle } from 'react-icons/fi';
-import { getRegisteredUsers, USERS_EVENT, AdminUser } from '@/lib/adminData';
+import { useQuery } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<AdminUser[]>(() => getRegisteredUsers());
+  const convexUsers = useQuery(api.users.list, {});
 
-  useEffect(() => {
-    const refresh = () => setUsers(getRegisteredUsers());
-    refresh();
-    window.addEventListener(USERS_EVENT, refresh);
-    return () => window.removeEventListener(USERS_EVENT, refresh);
-  }, []);
+  const users = (convexUsers || []).map((u: any) => ({
+    name: u.name,
+    username: u.username,
+    email: u.email || `${u.username}@civicpulse.org`,
+    createdAt: u.createdAt || u._creationTime,
+    isOnline: true,
+    location: u.district || u.state ? `${u.district || ''}, ${u.state || ''}` : undefined,
+  }));
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <FiUsers className="w-5 h-5 text-blue-400" />
         <div>
-          <h1 className="text-xl font-bold text-white">Users</h1>
-          <p className="text-sm text-zinc-400">{users.length} registered users</p>
+          <h1 className="text-xl font-bold text-white">Registered Users</h1>
+          <p className="text-sm text-zinc-400">{users.length} verified citizen & administrative accounts</p>
         </div>
       </div>
 
       {users.length === 0 ? (
         <div className="text-center py-20">
-          <p className="text-zinc-400 text-sm">No users yet</p>
+          <p className="text-zinc-400 text-sm">No registered users found</p>
         </div>
       ) : (
         <div className="rounded-2xl bg-[#0f0f1a] border border-white/5 overflow-hidden">
@@ -42,7 +44,7 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((user: AdminUser) => (
+                {users.map((user: any) => (
                   <tr key={user.username} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
                     <td className="px-4 py-3 text-white font-medium">{user.name}</td>
                     <td className="px-4 py-3 text-zinc-400">@{user.username}</td>
@@ -51,7 +53,7 @@ export default function AdminUsersPage() {
                     <td className="px-4 py-3">
                       <span className={`flex items-center gap-1.5 text-xs ${user.isOnline ? 'text-emerald-400' : 'text-zinc-500'}`}>
                         <FiCircle className="w-2 h-2 fill-current" />
-                        {user.isOnline ? 'Online' : 'Offline'}
+                        {user.isOnline ? 'Active' : 'Offline'}
                       </span>
                     </td>
                   </tr>

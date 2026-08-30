@@ -56,7 +56,7 @@ export default function SuggestReforms() {
   };
 
   return (
-    <section id="reforms" className="py-20 lg:py-28 bg-gradient-to-b from-transparent via-accent-saffron/[0.02] to-transparent dark:via-amber-500/[0.02] scroll-mt-20">
+    <section id="reforms" className="py-20 lg:py-28 bg-gradient-to-b from-transparent via-accent-saffron/[0.02] to-transparent dark:via-amber-500/[0.02] scroll-mt-24 lg:scroll-mt-28">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -118,7 +118,7 @@ export default function SuggestReforms() {
               <p className="text-muted dark:text-muted-dark">No reforms yet. Be the first to propose one!</p>
             </div>
           )}
-          {sortedList.map((reform, index) => (
+          {sortedList.slice(0, 6).map((reform, index) => (
             <motion.div
               key={reform.id}
               initial={{ opacity: 0, y: 20 }}
@@ -169,7 +169,7 @@ export default function SuggestReforms() {
                       <FiThumbsDown className="w-3.5 h-3.5" />
                       {reform.dislikes}
                     </button>
-                    <button onClick={() => requireAuth(() => voteReform(reform.id, 1))} className="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold tracking-wide transition-all duration-200 border bg-white/80 dark:bg-white/10 text-primary dark:text-white border-accent-saffron/40 dark:border-accent-saffron/60">
+                    <button onClick={() => requireAuth(() => voteReform(reform.id))} className="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold tracking-wide transition-all duration-200 border bg-white/80 dark:bg-white/10 text-primary dark:text-white border-accent-saffron/40 dark:border-accent-saffron/60">
                       Vote • {reform.votes}
                     </button>
                   </div>

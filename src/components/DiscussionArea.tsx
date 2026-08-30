@@ -125,7 +125,7 @@ export default function DiscussionArea() {
   );
 
   return (
-    <section id="discuss" className="py-20 lg:py-28 bg-gradient-to-b from-transparent via-primary/[0.02] to-transparent dark:via-blue-500/[0.02] scroll-mt-20">
+    <section id="discuss" className="py-20 lg:py-28 bg-gradient-to-b from-transparent via-primary/[0.02] to-transparent dark:via-blue-500/[0.02] scroll-mt-24 lg:scroll-mt-28">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

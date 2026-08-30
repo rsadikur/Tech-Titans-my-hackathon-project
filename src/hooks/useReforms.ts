@@ -1,9 +1,10 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useMutation, useQuery, api } from '@/lib/convexDisconnected';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { Id } from '../../convex/_generated/dataModel';
 import { useAuth } from './useAuth';
-import { useConvexReady } from './useConvex';
 import { CATEGORIES } from './useThoughts';
 
 export type ReformStatus = 'proposed' | 'in-discussion' | 'adopted';
@@ -32,91 +33,105 @@ export { CATEGORIES };
 
 export function useReforms() {
   const { user } = useAuth();
-  const convexReady = useConvexReady();
-  const createReform = useMutation(api.reforms.create);
-  const toggleVoteConvex = useMutation(api.reforms.toggleVote);
-  const toggleLikeConvex = useMutation(api.reforms.toggleLike);
-  const toggleDislikeConvex = useMutation(api.reforms.toggleDislike);
-  const convexReforms = useQuery(api.reforms.list, convexReady ? { sortBy: 'recent' } : 'skip');
+  const convexIdeas = useQuery(api.ideas.list, {});
+  const createIdeaMutation = useMutation(api.ideas.create);
+  const toggleIdeaVoteMutation = useMutation(api.votes.toggleIdeaVote);
 
   const [reforms, setReforms] = useState<Reform[]>([]);
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeStatus, setActiveStatus] = useState<ReformStatus | 'all'>('all');
 
   useEffect(() => {
-    if (convexReady && convexReforms) {
-      const mapped = convexReforms.map((cr: any) => ({
-        id: cr._id || '',
-        userId: cr.authorId || '',
-        userName: cr.author || 'Anonymous',
-        title: cr.title || '',
-        description: cr.description || '',
-        category: cr.category || 'general',
-        status: (cr.status || 'proposed').toLowerCase() as ReformStatus,
-        votes: cr.votes || 0,
-        timestamp: cr.createdAt || Date.now(),
-        likes: cr.likes || 0,
-        dislikes: cr.dislikes || 0,
+    if (convexIdeas && convexIdeas.length > 0) {
+      const mapped: Reform[] = convexIdeas.map((ci: any) => ({
+        id: ci._id,
+        userId: ci.createdBy,
+        userName: ci.createdByName || 'Citizen',
+        title: ci.title,
+        description: ci.description,
+        category: ci.category.toLowerCase(),
+        status: 'proposed',
+        votes: ci.voteCount || 0,
+        timestamp: ci.createdAt || Date.now(),
+        likes: ci.voteCount || 0,
+        dislikes: 0,
       }));
       setReforms(mapped);
     }
-  }, [convexReady, convexReforms]);
+  }, [convexIdeas]);
 
-  const submitReform = useCallback((title: string, description: string, category: string) => {
-    if (!title.trim() || !description.trim() || !user) return;
-    if (convexReady && createReform) {
-      createReform({
-        title: title.trim(),
-        description: description.trim(),
-        author: user.name,
-        authorId: user.username,
-        avatar: '',
-        category,
-      });
-    }
-  }, [user, convexReady, createReform]);
+  const submitReform = useCallback(
+    async (title: string, description: string, category: string, scope = 'National') => {
+      if (!title.trim() || !description.trim() || !user?._id) return;
+      const validCategories: any = [
+        'Education',
+        'Healthcare',
+        'Environment',
+        'Transport',
+        'Technology',
+        'Governance',
+        'Infrastructure',
+        'Other',
+      ];
+      const matchedCat =
+        validCategories.find(
+          (c: string) => c.toLowerCase() === category.toLowerCase()
+        ) || 'Other';
 
-  const voteReform = useCallback((id: string, _delta: number) => {
-    if (convexReady && toggleVoteConvex && user) {
-      toggleVoteConvex({ reformId: id as any, userId: user.username });
-    }
-  }, [convexReady, toggleVoteConvex, user]);
+      try {
+        await createIdeaMutation({
+          title: title.trim(),
+          description: description.trim(),
+          category: matchedCat,
+          scope: 'National',
+          userId: user._id as Id<'users'>,
+        });
+      } catch (e) {
+        console.warn('Convex createIdea notice:', e);
+      }
+    },
+    [user, createIdeaMutation]
+  );
 
-  const toggleLike = useCallback((id: string) => {
-    if (convexReady && toggleLikeConvex && user) {
-      toggleLikeConvex({ reformId: id as any, userId: user.username });
-    }
-  }, [convexReady, toggleLikeConvex, user]);
+  const voteReform = useCallback(
+    async (id: string) => {
+      if (user?._id && id) {
+        try {
+          await toggleIdeaVoteMutation({
+            ideaId: id as Id<'ideas'>,
+            userId: user._id as Id<'users'>,
+          });
+        } catch (e) {
+          console.warn('Convex voteIdea notice:', e);
+        }
+      }
+    },
+    [user, toggleIdeaVoteMutation]
+  );
 
-  const toggleDislike = useCallback((id: string) => {
-    if (convexReady && toggleDislikeConvex && user) {
-      toggleDislikeConvex({ reformId: id as any, userId: user.username });
-    }
-  }, [convexReady, toggleDislikeConvex, user]);
+  const toggleLike = useCallback(
+    (id: string) => {
+      voteReform(id);
+    },
+    [voteReform]
+  );
 
-  const updateStatus = useCallback((_id: string, _status: ReformStatus) => {
-  }, []);
-
-  const deleteReform = useCallback((_id: string) => {
-  }, []);
-
-  const filtered = reforms.filter(r => {
-    if (activeCategory !== 'all' && r.category !== activeCategory) return false;
-    if (activeStatus !== 'all' && r.status !== activeStatus) return false;
-    return true;
-  });
+  const toggleDislike = useCallback((_id: string) => {}, []);
+  const updateStatus = useCallback((_id: string, _status: ReformStatus) => {}, []);
+  const deleteReform = useCallback((_id: string) => {}, []);
 
   return {
-    reforms: filtered,
+    reforms,
     allReforms: reforms,
+    activeCategory,
+    setActiveCategory,
+    activeStatus,
+    setActiveStatus,
     submitReform,
     voteReform,
     toggleLike,
     toggleDislike,
     updateStatus,
     deleteReform,
-    activeCategory, setActiveCategory,
-    activeStatus, setActiveStatus,
-    user,
   };
 }

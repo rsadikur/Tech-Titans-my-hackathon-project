@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiUser,
   FiAtSign,
+  FiMail,
   FiLock,
   FiEye,
   FiEyeOff,
@@ -38,6 +39,7 @@ export default function SignUp() {
 
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [contactNumber, setContactNumber] = useState('');
@@ -82,6 +84,11 @@ export default function SignUp() {
     if (!name.trim()) { setError('Full name is required.'); return; }
     if (!username.trim()) { setError('Username is required.'); return; }
     if (username.length < 3) { setError('Username must be at least 3 characters.'); return; }
+    if (!email.trim()) { setError('Email address is required.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Please enter a valid email address.');
+      return;
+    }
     if (!password.trim()) { setError('Password is required.'); return; }
     if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
 
@@ -122,6 +129,7 @@ export default function SignUp() {
     const result = await signup(
       name.trim(),
       username.trim(),
+      email.trim(),
       password,
       contactNumber.trim(),
       locationPayload
@@ -205,6 +213,22 @@ export default function SignUp() {
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="Choose a unique username"
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+
+                {/* Email Address */}
+                <div>
+                  <label className={labelClass}>Email Address</label>
+                  <div className="relative">
+                    <FiMail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted dark:text-muted-dark" />
+                    <input
+                      id="signup-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="your.email@example.com"
                       className={inputClass}
                     />
                   </div>

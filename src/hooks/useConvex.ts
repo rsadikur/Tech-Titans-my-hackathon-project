@@ -1,9 +1,9 @@
-'use client';
+﻿'use client';
 
-import { useConvex as useConvexClient } from '@/lib/convexDisconnected';
+import { useConvex as useConvexClient } from 'convex/react';
 
 export function useConvexReady() {
-  return false;
+  return true;
 }
 
 export function useConvex() {

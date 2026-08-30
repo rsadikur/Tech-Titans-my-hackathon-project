@@ -8,19 +8,18 @@ import { useAuth } from '@/hooks/useAuth';
 import NotificationDropdown from '@/components/NotificationDropdown';
 import { HiMenu, HiSun, HiMoon } from 'react-icons/hi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiUser, FiLogOut, FiX, FiHome, FiFlag, FiMessageCircle, FiCamera, FiMap, FiGitBranch, FiMessageSquare, FiStar, FiGrid } from 'react-icons/fi';
+import { FiUser, FiLogOut, FiX, FiHome, FiFlag, FiMessageCircle, FiCamera, FiMap, FiGitBranch, FiMessageSquare, FiStar, FiGrid, FiCheckCircle } from 'react-icons/fi';
 import LogoHorizontal from '@/components/LogoHorizontal';
 
 const navLinks = [
   { label: 'Home', href: '/#home', icon: FiHome },
   { label: 'Issues', href: '/#issues', icon: FiFlag },
-  { label: 'Discuss', href: '/#discuss', icon: FiMessageCircle },
+  { label: 'Solved', href: '/solved-issues', icon: FiCheckCircle },
   { label: 'Evidence', href: '/evidence', icon: FiCamera },
   { label: 'Map', href: '/map', icon: FiMap },
   { label: 'Reforms', href: '/#reforms', icon: FiGitBranch },
   { label: 'Chat', href: '/chat', icon: FiMessageSquare },
   { label: 'Thoughts', href: '/thoughts', icon: FiStar },
-  { label: 'Dashboard', href: '/dashboard', icon: FiGrid },
 ];
 
 
@@ -70,16 +69,11 @@ export default function Navbar() {
   return (
     <>
       <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          scrolled
-            ? 'glass shadow-lg shadow-black/5'
-            : 'bg-transparent'
-        }`}
+        className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-[#0F172A] border-b border-border dark:border-border-dark shadow-sm transition-colors duration-200"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 lg:h-20">
             <Link href="/" className="flex items-center gap-2.5 group">
-              <LogoHorizontal size="sm" showTagline={false} />
             </Link>
 
             <div className="hidden lg:flex items-center gap-1">
@@ -107,15 +101,14 @@ export default function Navbar() {
               {user ? (
                 <>
                   <NotificationDropdown />
-                  <Link
-                    href="/dashboard"
-                    className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl glass border border-border dark:border-border-dark text-sm font-medium text-primary dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-all duration-200"
+                  <div
+                    className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl glass border border-border dark:border-border-dark text-sm font-medium text-primary dark:text-white"
                   >
                     <div className="w-7 h-7 rounded-lg gradient-bg flex items-center justify-center text-white text-[10px] font-bold">
                       {initials}
                     </div>
                     <span className="hidden md:inline text-xs">{user.name}</span>
-                  </Link>
+                  </div>
                   <button
                     onClick={logout}
                     className="hidden sm:flex p-2.5 rounded-xl text-muted dark:text-muted-dark hover:bg-red-500/10 hover:text-red-500 transition-all duration-200"

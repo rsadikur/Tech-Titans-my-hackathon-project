@@ -1,9 +1,10 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { useMutation, useQuery, api } from '@/lib/convexDisconnected';
-import { useConvexReady } from './useConvex';
-import { getLocalEvidence, LOCAL_EVIDENCE_EVENT } from '@/lib/localEvidence';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { Id } from '../../convex/_generated/dataModel';
+import { useAuth } from './useAuth';
 
 export interface Issue {
   id: number;
@@ -30,11 +31,16 @@ export interface IssueInput {
   category: string;
   location: string;
   urgency?: string;
+  latitude?: number;
+  longitude?: number;
+  district?: string;
+  state?: string;
+  pinCode?: string;
 }
 
 interface IssuesContextType {
   issues: Issue[];
-  addIssue: (issue: IssueInput) => void;
+  addIssue: (issue: IssueInput) => Promise<string | undefined>;
   toggleLike: (id: number) => void;
   removeLike: (id: number) => void;
   toggleDislike: (id: number) => void;
@@ -43,7 +49,7 @@ interface IssuesContextType {
 
 const IssuesContext = createContext<IssuesContextType>({
   issues: [],
-  addIssue: () => {},
+  addIssue: async () => undefined,
   toggleLike: () => {},
   removeLike: () => {},
   toggleDislike: () => {},
@@ -59,98 +65,142 @@ function formatTime(createdAt: number): string {
 }
 
 export function IssuesProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [issues, setIssues] = useState<Issue[]>([]);
-  const convexReady = useConvexReady();
-  const createIssue = useMutation(api.issues.create);
-  const likeMutation = useMutation(api.issues.toggleLike);
-  const dislikeMutation = useMutation(api.issues.toggleDislike);
-  const convexIssues = useQuery(api.issues.list, convexReady ? { limit: 50 } : 'skip');
+
+  // Real Convex query
+  const convexIssues = useQuery(api.issues.list, {});
+  const createIssueMutation = useMutation(api.issues.create);
+  const toggleIssueVoteMutation = useMutation(api.votes.toggleIssueVote);
 
   useEffect(() => {
-    if (convexReady && convexIssues) {
-      const mapped = convexIssues.map((ci: any, idx: number) => ({
-        id: idx + 1,
-        _id: ci._id,
-        title: ci.title,
-        category: ci.category,
-        location: ci.location || 'Citizen Report',
-        urgency: ci.urgency || 'Medium',
-        upvotes: ci.upvotes || 0,
-        comments: ci.comments || 0,
-        views: ci.views || 0,
-        time: formatTime(ci.createdAt || Date.now()),
-        status: ci.status || 'New',
-        statusColor: ci.statusColor || 'text-emerald-500 bg-emerald-500/10',
-        createdAt: ci.createdAt || Date.now(),
-        likes: ci.likes || 0,
-        dislikes: ci.dislikes || 0,
-      }));
-      setIssues(mapped);
-    }
-  }, [convexReady, convexIssues]);
+    if (convexIssues && convexIssues.length > 0) {
+      const mapped: Issue[] = convexIssues
+        .filter((ci: any) => ci.status !== 'Resolved')
+        .map((ci: any, idx: number) => {
+        let statusColor = 'text-emerald-500 bg-emerald-500/10';
+        if (ci.status === 'Verified') {
+          statusColor = 'text-blue-500 bg-blue-500/10';
+        } else if (ci.status === 'In Progress') {
+          statusColor = 'text-amber-500 bg-amber-500/10';
+        } else if (ci.status === 'Resolved') {
+          statusColor = 'text-sky-500 bg-sky-500/10';
+        }
 
-  useEffect(() => {
-    const refreshLocalIssues = () => {
-      const approved = getLocalEvidence().filter((item) => item.status === 'approved' || item.status === 'important');
-      setIssues(approved.map((item, index) => ({
-        id: index + 1,
-        _id: item._id,
-        title: item.title,
-        category: item.category || 'other',
-        location: item.location || 'Citizen Report',
-        urgency: item.urgency || 'Medium',
-        upvotes: 0,
-        comments: 0,
-        views: 0,
-        time: formatTime(item.createdAt),
-        status: item.status === 'important' ? 'Important' : 'Approved',
-        statusColor: item.status === 'important' ? 'text-amber-500 bg-amber-500/10' : 'text-emerald-500 bg-emerald-500/10',
-        createdAt: item.createdAt,
-        likes: 0,
-        dislikes: 0,
-        latitude: item.latitude,
-        longitude: item.longitude,
-      })));
-    };
-    refreshLocalIssues();
-    window.addEventListener(LOCAL_EVIDENCE_EVENT, refreshLocalIssues);
-    return () => window.removeEventListener(LOCAL_EVIDENCE_EVENT, refreshLocalIssues);
-  }, []);
-
-  const addIssue = useCallback((data: IssueInput) => {
-    if (convexReady && createIssue) {
-      createIssue({
-        title: data.title,
-        category: data.category,
-        location: data.location,
-        urgency: data.urgency,
+        return {
+          id: idx + 1,
+          _id: ci._id,
+          title: ci.title,
+          category: ci.category,
+          location: ci.address || ci.localArea || 'Citizen Report',
+          urgency: 'Medium',
+          upvotes: ci.voteCount || 0,
+          comments: 0,
+          views: 0,
+          time: formatTime(ci.createdAt || Date.now()),
+          status: ci.status || 'Verified',
+          statusColor: statusColor,
+          createdAt: ci.createdAt || Date.now(),
+          likes: ci.voteCount || 0,
+          dislikes: 0,
+          latitude: ci.latitude,
+          longitude: ci.longitude,
+        };
       });
+      setIssues(mapped);
+    } else {
+      setIssues([]);
     }
-  }, [convexReady, createIssue]);
+  }, [convexIssues]);
 
-  const toggleLike = useCallback((id: number) => {
-    if (convexReady && likeMutation) {
-      const issue = issues.find(i => i.id === id);
-      if (issue?._id) {
-        likeMutation({ issueId: issue._id as any, userId: 'anonymous' });
+  const addIssue = useCallback(
+    async (data: IssueInput) => {
+      try {
+        if (user?._id) {
+          const categoryValid = [
+            'Pothole',
+            'Road Damage',
+            'Garbage',
+            'Broken Streetlight',
+            'Water / Drainage',
+            'Public Infrastructure',
+            'Other',
+          ].includes(data.category)
+            ? (data.category as any)
+            : 'Other';
+
+          const res = await createIssueMutation({
+            title: data.title,
+            description: data.title,
+            category: categoryValid,
+            latitude: data.latitude || 31.2536,
+            longitude: data.longitude || 75.7037,
+            address: data.location,
+            localArea: data.district || 'Phagwara',
+            district: data.district || 'Kapurthala',
+            state: data.state || 'Punjab',
+            pinCode: data.pinCode || '144411',
+            userId: user._id as Id<'users'>,
+          });
+          return res;
+        }
+      } catch (e) {
+        console.warn('Convex addIssue notice:', e);
       }
-    }
-  }, [convexReady, likeMutation, issues]);
+      return undefined;
+    },
+    [createIssueMutation, user]
+  );
 
-  const removeLike = useCallback((_id: number) => {
-  }, []);
+  const toggleLike = useCallback(
+    async (id: number) => {
+      const target = issues.find((i) => i.id === id);
+      if (!target) return;
 
-  const toggleDislike = useCallback((id: number) => {
-    if (convexReady && dislikeMutation) {
-      const issue = issues.find(i => i.id === id);
-      if (issue?._id) {
-        dislikeMutation({ issueId: issue._id as any, userId: 'anonymous' });
+      if (user?._id && target._id) {
+        try {
+          await toggleIssueVoteMutation({
+            issueId: target._id as Id<'issues'>,
+            userId: user._id as Id<'users'>,
+          });
+        } catch (e) {
+          console.warn('Convex toggleVote notice:', e);
+        }
       }
-    }
-  }, [convexReady, dislikeMutation, issues]);
+    },
+    [issues, toggleIssueVoteMutation, user]
+  );
 
-  const removeDislike = useCallback((_id: number) => {
-  }, []);
+  const removeLike = useCallback(
+    async (id: number) => {
+      const target = issues.find((i) => i.id === id);
+      if (!target) return;
+
+      if (user?._id && target._id) {
+        try {
+          await toggleIssueVoteMutation({
+            issueId: target._id as Id<'issues'>,
+            userId: user._id as Id<'users'>,
+          });
+        } catch {}
+      }
+    },
+    [issues, toggleIssueVoteMutation, user]
+  );
+
+  const toggleDislike = useCallback(
+    (_id: number) => {
+      // Dislike is client-side interaction or unvote
+    },
+    []
+  );
+
+  const removeDislike = useCallback(
+    (_id: number) => {
+      // Dislike is client-side interaction or unvote
+    },
+    []
+  );
 
   return (
     <IssuesContext.Provider value={{ issues, addIssue, toggleLike, removeLike, toggleDislike, removeDislike }}>

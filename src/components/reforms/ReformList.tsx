@@ -1,16 +1,18 @@
 'use client';
 
 import { useReforms, REFORM_STATUSES, CATEGORIES } from '@/hooks/useReforms';
+import { useAuth } from '@/hooks/useAuth';
 import ReformCard from './ReformCard';
 import ReformForm from './ReformForm';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiTrendingUp, FiFilter } from 'react-icons/fi';
 
 export default function ReformList() {
+  const { user } = useAuth();
   const {
     reforms, submitReform, voteReform, toggleLike, toggleDislike,
     activeCategory, setActiveCategory,
-    activeStatus, setActiveStatus, user,
+    activeStatus, setActiveStatus,
   } = useReforms();
 
   return (

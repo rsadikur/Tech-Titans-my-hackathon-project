@@ -10,8 +10,7 @@ import {
 const sidebarLinks = [
   { label: 'Dashboard', href: '/admin/dashboard', icon: FiHome },
   { label: 'Pending Videos', href: '/admin/pending', icon: FiClock },
-  { label: 'Approved Videos', href: '/admin/approved', icon: FiCheckCircle },
-  { label: 'Notifications', href: '/admin/notifications', icon: FiBell },
+  { label: 'Approved Videos', href: '/admin/approved', icon: FiVideo },
   { label: 'Contact Messages', href: '/admin/contact-messages', icon: FiMessageSquare },
   { label: 'Visitors', href: '/admin/visitors', icon: FiGlobe },
   { label: 'Users', href: '/admin/users', icon: FiUsers },

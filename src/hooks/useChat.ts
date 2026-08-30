@@ -1,13 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useMutation, useQuery, api } from '@/lib/convexDisconnected';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import { useAuth } from './useAuth';
 import { useConvexReady } from './useConvex';
-import { getRegisteredUsers } from '@/lib/adminData';
-
-const CHAT_STORAGE_KEY = 'public_chat_messages';
-const CHAT_EVENT = 'chat-messages-updated';
 
 const BLOCKED_WORDS = [
   'fuck', 'fucking', 'fuckyou', 'fck', 'fuk', 'fcuk',
@@ -97,66 +94,6 @@ export interface ChatMessage {
   timestamp: number;
 }
 
-const DEFAULT_CHAT_MESSAGES: ChatMessage[] = [
-  {
-    id: 'chat-seed-1',
-    userId: 'priya_s',
-    userName: 'Priya Sharma',
-    text: 'Hello everyone! Has anyone reported the heavy waterlogging near the Phagwara main market?',
-    category: 'roads',
-    timestamp: Date.now() - 3600000 * 2,
-  },
-  {
-    id: 'chat-seed-2',
-    userId: 'rajesh_k',
-    userName: 'Rajesh Kumar',
-    text: 'Yes Priya, I just uploaded a report with photos in the Evidence section. Please upvote so it gets escalated!',
-    category: 'roads',
-    timestamp: Date.now() - 3600000 * 1.8,
-  },
-  {
-    id: 'chat-seed-3',
-    userId: 'sneha_p',
-    userName: 'Sneha Patel',
-    text: 'Upvoted! Also noticed the streetlights along the link road were fixed after our report last week. Great to see fast action.',
-    category: 'electricity',
-    timestamp: Date.now() - 3600000 * 1.2,
-  },
-  {
-    id: 'chat-seed-4',
-    userId: 'amit_v',
-    userName: 'Amit Verma',
-    text: 'Welcome all new citizens to CivicPulse! Remember to attach clear photo proof when reporting civic issues.',
-    category: 'general',
-    timestamp: Date.now() - 3600000 * 0.5,
-  },
-];
-
-function getStoredChatMessages(): ChatMessage[] {
-  if (typeof window === 'undefined') return DEFAULT_CHAT_MESSAGES;
-  try {
-    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
-    if (!raw) {
-      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(DEFAULT_CHAT_MESSAGES));
-      return DEFAULT_CHAT_MESSAGES;
-    }
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_CHAT_MESSAGES;
-  } catch {
-    return DEFAULT_CHAT_MESSAGES;
-  }
-}
-
-function saveStoredChatMessages(msgs: ChatMessage[]) {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(msgs));
-    window.dispatchEvent(new Event(CHAT_EVENT));
-  } catch (err) {
-    console.error('Failed to save chat message:', err);
-  }
-}
-
 export function useChat(channel?: string) {
   const { user } = useAuth();
   const convexReady = useConvexReady();
@@ -169,20 +106,11 @@ export function useChat(channel?: string) {
   const convexTyping = useQuery(api.typing.getTyping, convexReady ? { channel: chatChannel } : 'skip');
   const convexOnlineUsers = useQuery(api.auth.getOnlineUsers, convexReady ? {} : 'skip');
 
-  const [messages, setMessages] = useState<ChatMessage[]>(() => getStoredChatMessages());
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [typing, setTyping] = useState<{ name: string; id: string } | null>(null);
-  const [onlineCount, setOnlineCount] = useState(() => {
-    const registered = getRegisteredUsers();
-    return Math.max(registered.length + 6, 12);
-  });
+  const [onlineCount, setOnlineCount] = useState(1);
   const [input, setInput] = useState('');
   const [sendError, setSendError] = useState('');
-
-  useEffect(() => {
-    const refresh = () => setMessages(getStoredChatMessages());
-    window.addEventListener(CHAT_EVENT, refresh);
-    return () => window.removeEventListener(CHAT_EVENT, refresh);
-  }, []);
 
   useEffect(() => {
     if (convexReady && convexMessages) {
@@ -191,18 +119,17 @@ export function useChat(channel?: string) {
         userId: cm.userId,
         userName: cm.userName,
         text: cm.text,
-        category: cm.category as MessageCategory,
-        timestamp: cm.timestamp || Date.now(),
+        category: (cm.category || 'general') as MessageCategory,
+        timestamp: cm.createdAt || cm.timestamp || Date.now(),
       }));
       setMessages(mapped.reverse());
     }
   }, [convexReady, convexMessages]);
 
   useEffect(() => {
-    if (convexReady && convexTyping && convexTyping.length > 0) {
-      const last = convexTyping[convexTyping.length - 1];
-      if (last && last.id !== user?.username) {
-        setTyping(last);
+    if (convexReady && convexTyping) {
+      if (convexTyping.id !== user?.username) {
+        setTyping(convexTyping);
         const timer = setTimeout(() => setTyping(null), 3000);
         return () => clearTimeout(timer);
       }
@@ -217,7 +144,7 @@ export function useChat(channel?: string) {
 
   useEffect(() => {
     if (convexReady && user) {
-      updateOnlineStatusConvex({ username: user.username, isOnline: true });
+      updateOnlineStatusConvex({ userId: user.username, userName: user.name, isOnline: true });
     }
   }, [convexReady, user, updateOnlineStatusConvex]);
 
@@ -225,7 +152,7 @@ export function useChat(channel?: string) {
     return () => {
       try {
         if (convexReady && user && updateOnlineStatusConvex) {
-          updateOnlineStatusConvex({ username: user.username, isOnline: false });
+          updateOnlineStatusConvex({ userId: user.username, userName: user.name, isOnline: false });
         }
       } catch {}
     };
@@ -239,19 +166,6 @@ export function useChat(channel?: string) {
       return;
     }
 
-    const currentList = getStoredChatMessages();
-    const newMsg: ChatMessage = {
-      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      userId: user.username,
-      userName: user.name,
-      text: text.trim(),
-      category: category || 'general',
-      timestamp: Date.now(),
-    };
-
-    const updated = [...currentList, newMsg];
-    saveStoredChatMessages(updated);
-    setMessages(updated);
     setInput('');
 
     if (convexReady && sendConvex) {
@@ -260,39 +174,12 @@ export function useChat(channel?: string) {
           userId: user.username,
           userName: user.name,
           text: text.trim(),
-          category,
           channel: chatChannel,
         });
       } catch (e) {
         console.error('Convex send error:', e);
       }
     }
-
-    // Interactive community simulation reply
-    setTimeout(() => {
-      setTyping({ name: 'Priya Sharma', id: 'priya_s' });
-      setTimeout(() => {
-        setTyping(null);
-        const replies = [
-          'Thank you for raising this issue! Upvoted.',
-          'Acknowledged. Great to see citizens actively discussing local improvements.',
-          'Let’s also share this on the Discussion Area to get more visibility.',
-        ];
-        const randomReply = replies[Math.floor(Math.random() * replies.length)];
-        const replyMsg: ChatMessage = {
-          id: `msg-reply-${Date.now()}`,
-          userId: 'priya_s',
-          userName: 'Priya Sharma',
-          text: randomReply,
-          category: category || 'general',
-          timestamp: Date.now(),
-        };
-        const latest = getStoredChatMessages();
-        const withReply = [...latest, replyMsg];
-        saveStoredChatMessages(withReply);
-        setMessages(withReply);
-      }, 2000);
-    }, 1500);
   }, [user, sendConvex, chatChannel, convexReady]);
 
   const handleTyping = useCallback(() => {
@@ -302,6 +189,7 @@ export function useChat(channel?: string) {
         userId: user.username,
         userName: user.name,
         channel: chatChannel,
+        isTyping: true,
       });
     }
   }, [user, convexReady, setTypingConvex, chatChannel]);

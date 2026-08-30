@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation, api } from '@/lib/convexDisconnected';
+import { useMutation } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
 import { FiSend, FiUsers, FiUser, FiBell } from 'react-icons/fi';
 
 export default function AdminNotificationsPage() {

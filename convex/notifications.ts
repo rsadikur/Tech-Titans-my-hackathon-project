@@ -1,102 +1,129 @@
-import { v } from 'convex/values';
-import { mutation, query } from './_generated/server';
+﻿import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
-export const create = mutation({
+export const list = query({
   args: {
-    userId: v.string(),
-    type: v.string(),
-    title: v.string(),
-    message: v.string(),
-    link: v.optional(v.string()),
+    userId: v.optional(v.id("users")),
+    username: v.optional(v.string()),
+    limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert('notifications', {
-      userId: args.userId,
-      type: args.type,
-      title: args.title,
-      message: args.message,
-      read: false,
-      createdAt: Date.now(),
-      link: args.link,
-    });
-  },
-});
+    const limit = args.limit || 50;
+    let targetUserId = args.userId;
 
-export const listByUser = query({
-  args: { userId: v.string(), limit: v.optional(v.number()) },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query('notifications')
-      .withIndex('by_user', q => q.eq('userId', args.userId))
-      .order('desc')
-      .take(args.limit || 50);
-  },
-});
-
-export const markAsRead = mutation({
-  args: { notificationId: v.id('notifications') },
-  handler: async (ctx, args) => {
-    await ctx.db.patch(args.notificationId, { read: true });
-  },
-});
-
-export const markAllAsRead = mutation({
-  args: { userId: v.string() },
-  handler: async (ctx, args) => {
-    const notifications = await ctx.db
-      .query('notifications')
-      .withIndex('by_user', q => q.eq('userId', args.userId))
-      .filter(q => q.eq(q.field('read'), false))
-      .collect();
-
-    for (const n of notifications) {
-      await ctx.db.patch(n._id, { read: true });
+    if (!targetUserId && args.username) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_username", (q) => q.eq("username", args.username!.trim().toLowerCase()))
+        .first();
+      if (user) {
+        targetUserId = user._id;
+      }
     }
+
+    if (!targetUserId) {
+      return [];
+    }
+
+    return await ctx.db
+      .query("notifications")
+      .withIndex("by_userId", (q) => q.eq("userId", targetUserId!))
+      .order("desc")
+      .take(limit);
   },
 });
 
 export const getUnreadCount = query({
-  args: { userId: v.string() },
+  args: {
+    userId: v.optional(v.id("users")),
+    username: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
-    const notifications = await ctx.db
-      .query('notifications')
-      .withIndex('by_user', q => q.eq('userId', args.userId))
-      .filter(q => q.eq(q.field('read'), false))
+    let targetUserId = args.userId;
+
+    if (!targetUserId && args.username) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_username", (q) => q.eq("username", args.username!.trim().toLowerCase()))
+        .first();
+      if (user) {
+        targetUserId = user._id;
+      }
+    }
+
+    if (!targetUserId) {
+      return 0;
+    }
+
+    const unread = await ctx.db
+      .query("notifications")
+      .withIndex("by_user_read", (q) =>
+        q.eq("userId", targetUserId!).eq("isRead", false)
+      )
       .collect();
-    return notifications.length;
+    return unread.length;
+  },
+});
+
+export const markAsRead = mutation({
+  args: { id: v.id("notifications") },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.id, { isRead: true });
+  },
+});
+
+export const markAllAsRead = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const unread = await ctx.db
+      .query("notifications")
+      .withIndex("by_user_read", (q) =>
+        q.eq("userId", args.userId).eq("isRead", false)
+      )
+      .collect();
+
+    for (const item of unread) {
+      await ctx.db.patch(item._id, { isRead: true });
+    }
   },
 });
 
 export const sendAdminNotification = mutation({
   args: {
-    target: v.union(v.literal('all'), v.literal('user')),
+    target: v.union(v.literal("all"), v.literal("user")),
     username: v.optional(v.string()),
     title: v.string(),
     message: v.string(),
-    type: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    if (args.target === 'all') {
-      const users = await ctx.db.query('users').collect();
-      for (const u of users) {
-        await ctx.db.insert('notifications', {
-          userId: u.username,
-          type: args.type || 'admin',
-          title: args.title,
-          message: args.message,
-          read: false,
-          createdAt: Date.now(),
+    const now = Date.now();
+    if (args.target === "user" && args.username) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_username", (q) => q.eq("username", args.username!.trim().toLowerCase()))
+        .first();
+      if (user) {
+        await ctx.db.insert("notifications", {
+          userId: user._id,
+          type: "admin_announcement",
+          title: args.title.trim(),
+          message: args.message.trim(),
+          isRead: false,
+          createdAt: now,
         });
       }
-    } else if (args.target === 'user' && args.username) {
-      await ctx.db.insert('notifications', {
-        userId: args.username,
-        type: args.type || 'admin',
-        title: args.title,
-        message: args.message,
-        read: false,
-        createdAt: Date.now(),
-      });
+    } else {
+      const allUsers = await ctx.db.query("users").collect();
+      for (const u of allUsers) {
+        await ctx.db.insert("notifications", {
+          userId: u._id,
+          type: "admin_announcement",
+          title: args.title.trim(),
+          message: args.message.trim(),
+          isRead: false,
+          createdAt: now,
+        });
+      }
     }
   },
 });
